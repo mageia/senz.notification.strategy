@@ -8,3 +8,4 @@ start.sh
 .idea
 node_modules
 .jshintrc
+.avoscloud/
