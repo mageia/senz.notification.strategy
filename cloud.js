@@ -210,7 +210,7 @@ AV.Cloud.define('createStrategy', function(req, rep){
 	class_strategy.set("devId", devId);
 	class_strategy.set("appId", appId);
 	class_strategy.set("delay_type", delay_type);
-	class_strategy.set("platform", platform);
+	class_strategy.set("platform", req.params.target);
 	class_strategy.set("timeout", timeout);
 	class_strategy.set("condition", condition);
 	class_strategy.set("message", message);
