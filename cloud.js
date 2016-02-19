@@ -1,4 +1,6 @@
 var AV = require('leanengine');
+var Wilddog = require("wilddog");
+var _ = require("underscore");
 var mongoose = require('mongoose');
 var Schema = mongoose.Schema;
 
@@ -92,8 +94,37 @@ var InstallationRepeatFilter = function(installations){
 	return result;
 };
 
-var getLastStatus = function(installationId){
-	return AV.Promise.as({type: 'event', status: 'motionSitting'})
+var getLastStatus = function(installation){
+	var platform = installation.get("deviceType");
+	var tracker = installation.get("user").id;
+	console.log(platform);
+	if(platform === "ios"){
+		console.log("#####################");
+		return AV.Promise.as({});
+	}
+	else if(platform === "android"){
+		var ref = new Wilddog("https://notify.wilddogio.com/notification/" + tracker + "/content");
+		return AV.Promise.as().then(
+			function(){
+				ref.on("value", function(data){
+					if(data.val()){
+						var content = data.val();
+						Object.keys(content).forEach(function(key){
+							content[key].type = key;
+						});
+						var result = _.values(content).sort(function(a, b){
+							return a.timestamp < b.timestamp ? 1: -1;
+						});
+						return AV.Promise.as({type: result[0].type, status: result[0].status});
+					}else{
+						return AV.Promise.as({});
+					}
+				})
+			});
+	}
+	else{
+		return AV.Promise.error("Invalid platform");
+	}
 };
 
 var getInstallationIds = function(devId, appId, condition){
@@ -114,7 +145,7 @@ var getInstallationIds = function(devId, appId, condition){
 
 		if(condition.type == "event" || condition.type == "motion"){
 			installations.forEach(function(installation){
-				user_promises.push(getLastStatus(installation.id).then(function(last_msg){
+				user_promises.push(getLastStatus(installation).then(function(last_msg){
 					if(last_msg.type == condition.type && condition.data.indexOf(last_msg.status) >= 0){
 						return AV.Promise.as(installation.id);
 					}
@@ -167,7 +198,7 @@ var strategyTrans = function(devId, appId, condition){
 	}
 };
 
-getInstallationIds("563b260900b0848410ddd6c2", "564573f660b25b79f067aeef",
+getInstallationIds("56594f9700b0bf379f075377", "5678df1560b2f2e841665918",
     {"data":['motionSitting'],"type":"event"})
     .then(function(d){
       console.log(d);
@@ -197,7 +228,7 @@ AV.Cloud.define('createStrategy', function(req, rep){
 	};
 
 	console.log(JSON.stringify(req.params));
-
+	console.log(condition);
 
 	getInstallationIds(devId, appId, condition).then(function(installationIds){
 		var delay = delay_type.type == "timing" ?
